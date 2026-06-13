@@ -338,101 +338,115 @@ if st.button("▶ 実行", type="primary"):
 
 st.markdown("---")
 
-# ─── テストケースで正誤チェック ───────────────────
-st.subheader("🧪 テストケースで正誤チェック")
+# ─── テストケースで正誤チェック（標準入力形式） ───────────────────
+st.subheader("🧪 テストケースで正誤チェック（paiza / AtCoder 形式）")
 st.markdown("""
-実際のpaiza・AtCoderでは「入力を与えると答えを出力する」形式が多いです。
-ここでは迷路の入力を与えて、あなたのコードが正しい答えを出すか確認できます。
+実際のpaiza・AtCoderと同じ**標準入力形式**で練習できます。
+
+**入力フォーマット:**
+```
+行数 列数
+迷路（S=スタート, G=ゴール, .=通路, #=壁）
+```
+コードは `input()` で読み込んで、答えを `print()` で出力してください。
 """)
 
 TEST_CASES = [
     {
         "label": "ケース1：シンプルな迷路（答え: 4）",
-        "maze": [[0,0,0],[1,1,0],[0,0,0]],
-        "start": (0,0), "goal": (2,2), "expected": 4,
-        "desc": "3×3の迷路。真ん中が壁で回り込む必要あり。",
+        "input": "3 3\nS.#\n##.\n..G",
+        "expected": "4",
+        "desc": "3×3の迷路。壁を回り込む必要あり。",
     },
     {
         "label": "ケース2：一直線（答え: 4）",
-        "maze": [[0,0,0,0,0]],
-        "start": (0,0), "goal": (0,4), "expected": 4,
+        "input": "1 5\nS...G",
+        "expected": "4",
         "desc": "1行5列。壁なし。ただ右に進むだけ。",
     },
     {
         "label": "ケース3：到達不能（答え: -1）",
-        "maze": [[0,1,0],[1,1,1],[0,1,0]],
-        "start": (0,0), "goal": (2,2), "expected": -1,
-        "desc": "壁に囲まれてゴールに辿り着けない。-1を返すべき。",
+        "input": "3 3\nS#.\n###\n.#G",
+        "expected": "-1",
+        "desc": "壁に囲まれてゴールに辿り着けない。-1を出力する。",
     },
     {
         "label": "ケース4：やや複雑（答え: 8）",
-        "maze": [
-            [0,0,1,0,0],
-            [1,0,1,0,1],
-            [0,0,0,0,0],
-            [0,1,1,1,0],
-            [0,0,0,0,0],
-        ],
-        "start": (0,0), "goal": (4,4), "expected": 8,
+        "input": "5 5\nS.#..\n#.#.#\n.....\n.###.\n....G",
+        "expected": "8",
         "desc": "5×5。迂回が必要。",
     },
 ]
 
 USER_CODE_FOR_TEST = '''\
+import sys
 from collections import deque
+input = sys.stdin.readline
 
-def bfs(maze, start, goal):
-    rows, cols = len(maze), len(maze[0])
+def main():
+    H, W = map(int, input().split())
+    maze = [input().strip() for _ in range(H)]
+
+    # S と G の位置を探す
+    start = goal = None
+    for r in range(H):
+        for c in range(W):
+            if maze[r][c] == "S":
+                start = (r, c)
+            elif maze[r][c] == "G":
+                goal = (r, c)
+
     queue = deque()
     queue.append((start[0], start[1], 0))
-    visited = [[False] * cols for _ in range(rows)]
+    visited = [[False] * W for _ in range(H)]
     visited[start[0]][start[1]] = True
 
     while queue:
         r, c, dist = queue.popleft()
         if (r, c) == goal:
-            return dist
+            print(dist)
+            return
         for dr, dc in [(-1,0),(1,0),(0,-1),(0,1)]:
             nr, nc = r + dr, c + dc
-            if 0 <= nr < rows and 0 <= nc < cols \\
-               and maze[nr][nc] == 0 \\
+            if 0 <= nr < H and 0 <= nc < W \\
+               and maze[nr][nc] != "#" \\
                and not visited[nr][nc]:
                 visited[nr][nc] = True
                 queue.append((nr, nc, dist + 1))
-    return -1
+
+    print(-1)
+
+main()
 '''
 
-st.markdown("**テスト用コード（編集可）**")
-st.caption("関数名 `bfs(maze, start, goal)` のまま変えないでください。中身は自由に変えてOK。")
-test_code = st.text_area("テスト用コード", value=USER_CODE_FOR_TEST, height=260, label_visibility="collapsed")
+st.markdown("**コードを書いて全テストを実行しよう（編集可）**")
+st.caption("`input()` で読み込み、`print()` で出力する paiza/AtCoder 形式で書いてください。")
+test_code = st.text_area("テスト用コード", value=USER_CODE_FOR_TEST, height=300, label_visibility="collapsed")
 
 if st.button("🧪 全テストケースを実行", type="primary"):
-    namespace = {}
-    try:
-        exec(test_code, namespace)
-    except Exception as e:
-        st.error(f"コードの読み込みエラー: {e}")
-        st.stop()
-
-    if "bfs" not in namespace:
-        st.error("`bfs` という関数が見つかりません。関数名を `bfs` にしてください。")
-        st.stop()
-
-    bfs_fn = namespace["bfs"]
     all_pass = True
 
     for tc in TEST_CASES:
         with st.container():
             try:
-                result = bfs_fn(tc["maze"], tc["start"], tc["goal"])
+                buf_out = io.StringIO()
+                buf_in = io.StringIO(tc["input"])
+                sys.stdin = buf_in
+                sys.stdout = buf_out
+                exec(test_code, {"__builtins__": __builtins__})
+                sys.stdin = sys.__stdin__
+                sys.stdout = sys.__stdout__
+                result = buf_out.getvalue().strip()
                 passed = result == tc["expected"]
                 if not passed:
                     all_pass = False
 
-                col_a, col_b = st.columns([3,1])
+                col_a, col_b = st.columns([3, 1])
                 with col_a:
                     st.markdown(f"**{tc['label']}**")
                     st.caption(tc["desc"])
+                    with st.expander("入力を見る"):
+                        st.code(tc["input"])
                     st.caption(f"期待値: `{tc['expected']}`　あなたの出力: `{result}`")
                 with col_b:
                     if passed:
@@ -440,6 +454,8 @@ if st.button("🧪 全テストケースを実行", type="primary"):
                     else:
                         st.error("WA ❌")
             except Exception as e:
+                sys.stdin = sys.__stdin__
+                sys.stdout = sys.__stdout__
                 all_pass = False
                 st.markdown(f"**{tc['label']}**")
                 st.error(f"RE（実行エラー）💥: {e}")
